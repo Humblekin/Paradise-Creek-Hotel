@@ -33,10 +33,10 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<HomePage onOpenAuth={() => setAuthOpen(true)} />} />
           <Route path="/rooms" element={<RoomsPage onOpenAuth={() => setAuthOpen(true)} />} />
-          <Route path="/rooms/:id" element={<RoomDetailPage onOpenAuth={() => setAuthOpen(true)} />} />
+          <Route path="/rooms/:id" element={<RoomDetailPage onOpenAuth={()=> setAuthOpen(true)} />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
-          <Route path="/my-bookings" element={<MyBookingsPage onOpenAuth={() => setAuthOpen(true)} />} />
+          <Route path="/my-bookings" element={<MyBookingsPage onOpenAuth={()=> setAuthOpen(true)} />} />
           <Route path="/dashboard" element={<DashboardPage />} />
         </Routes>
       </main>

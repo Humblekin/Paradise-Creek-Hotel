@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import heroImage from '../assets/hero image.jpeg';
 import './Hero.css';
 
 export default function Hero({ onOpenAuth }) {
@@ -33,7 +34,7 @@ export default function Hero({ onOpenAuth }) {
 
   return (
     <section className="hero">
-      <div className="hero-bg" />
+      <div className="hero-bg" style={{ backgroundImage: `url(${heroImage})` }} />
       <div className="hero-particles" ref={particlesRef} />
       <div className="float-shape" style={{ width: '384px', height: '384px', background: 'rgba(196, 160, 80, 0.05)', borderRadius: '50%', position: 'absolute', top: '-80px', left: '-80px', zIndex: 1, animation: 'floatShape 8s ease-in-out infinite', animationDelay: '-2s' }} />
       <div className="float-shape" style={{ width: '288px', height: '288px', background: 'rgba(196, 160, 80, 0.05)', borderRadius: '50%', position: 'absolute', bottom: '80px', right: '40px', zIndex: 1, animation: 'floatShape 8s ease-in-out infinite', animationDelay: '-5s' }} />

@@ -4,9 +4,9 @@ import './StatsBar.css';
 
 export default function StatsBar() {
   const [containerRef, visible] = useScrollAnimation();
-  const [roomsRef, roomsCount] = useCounter(150);
-  const [yearsRef, yearsCount] = useCounter(25);
-  const [guestsRef, guestsCount] = useCounter(50000);
+  const [guestsRef, guestsCount] = useCounter(10);
+  const [yearsRef, yearsCount] = useCounter(1);
+  const [roomsRef, roomsCount] = useCounter(5);
   const [ratingRef, ratingCount] = useCounter(4);
 
   const stats = [
