@@ -63,19 +63,14 @@ export default function DashboardPage() {
   const fileInputRef = useRef(null);
   const [bookingSearch, setBookingSearch] = useState('');
 
-  const confirmedBookings = useMemo(
-    () => (bookings || []).filter((b) => b.status === 'confirmed'),
-    [bookings]
-  );
-
-  const paidBookings = useMemo(
-    () => (bookings || []).filter((b) => b.status === 'paid'),
+  const paidOrConfirmedBookings = useMemo(
+    () => (bookings || []).filter((b) => ['paid', 'confirmed', 'checked_in', 'checked_out'].includes(b.status)),
     [bookings]
   );
 
   const totalRevenue = useMemo(
-    () => [...confirmedBookings, ...paidBookings].reduce((sum, b) => sum + (b.totalPrice || 0), 0),
-    [confirmedBookings, paidBookings]
+    () => paidOrConfirmedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0),
+    [paidOrConfirmedBookings]
   );
 
   const pendingAmount = useMemo(
@@ -85,22 +80,21 @@ export default function DashboardPage() {
 
   const activeGuests = useMemo(() => {
     const active = (bookings || []).filter(
-      (b) => b.status === 'confirmed' || b.status === 'pending' || b.status === 'paid'
+      (b) => b.status === 'confirmed' || b.status === 'paid' || b.status === 'checked_in'
     );
-    const unique = new Set(active.map((b) => b.userId));
+    const unique = new Set(active.map((b) => b.userId || b.guestEmail));
     return unique.size;
   }, [bookings]);
 
   const chartData = useMemo(() => {
     const monthly = months.map(() => 0);
-    const all = [...(confirmedBookings || []), ...(paidBookings || [])];
-    all.forEach((b) => {
+    (paidOrConfirmedBookings || []).forEach((b) => {
       const d = b.createdAt?.toDate?.() || new Date(b.createdAt);
       const m = d.getMonth();
       if (m >= 0 && m < 6) monthly[m] += b.totalPrice || 0;
     });
     return monthly;
-  }, [confirmedBookings, paidBookings]);
+  }, [paidOrConfirmedBookings]);
 
   const maxChart = Math.max(...chartData, 1);
 
@@ -492,8 +486,7 @@ export default function DashboardPage() {
   };
 
   const renderPayments = () => {
-    const allPaid = [...confirmedBookings, ...paidBookings];
-    const totalCollected = allPaid.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+    const totalCollected = paidOrConfirmedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
 
     return (
       <div>
@@ -511,7 +504,7 @@ export default function DashboardPage() {
           <div className="dashboard-payment-card glass-card">
             <div className="dashboard-payment-icon"><i className="fas fa-exchange-alt"></i></div>
             <div className="dashboard-payment-label">Transactions</div>
-            <div className="dashboard-payment-value">{allPaid.length}</div>
+            <div className="dashboard-payment-value">{paidOrConfirmedBookings.length}</div>
           </div>
         </div>
 
@@ -531,8 +524,8 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {allPaid.length > 0 ? (
-                  allPaid.map((b) => (
+                {paidOrConfirmedBookings.length > 0 ? (
+                  paidOrConfirmedBookings.map((b) => (
                     <tr key={b.id}>
                       <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
                         {b.paystackRef || b.paymentRef || b.id?.slice(0, 8)}
