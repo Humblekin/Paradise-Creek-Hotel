@@ -44,7 +44,8 @@ async function checkSupabase() {
   if (readyChecked) return supabaseReady;
   readyChecked = true;
   try {
-    const { data, error } = await supabase.from('bookings').select('id').limit(1);
+    // Use rooms table (always publicly readable) instead of bookings (RLS-restricted)
+    const { data, error } = await supabase.from('rooms').select('id').limit(1);
     if (error) { console.error('[bookingService] checkSupabase error:', error); supabaseReady = false; return false; }
     supabaseReady = Array.isArray(data);
   } catch (e) {
