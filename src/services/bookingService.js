@@ -71,6 +71,102 @@ function isFallback(r) {
   return r && r.__fallback === true;
 }
 
+function toSnakeBooking(data, bookingRef) {
+  return {
+    user_id: data.userId || null,
+    room_id: data.roomId,
+    room_name: data.roomName || '',
+    user_email: data.guestEmail || '',
+    guest_name: data.guestName || '',
+    guest_email: data.guestEmail || '',
+    guest_phone: data.guestPhone || '',
+    country: data.country || '',
+    special_requests: data.specialRequests || '',
+    booking_reference: bookingRef,
+    check_in: data.checkIn,
+    check_out: data.checkOut,
+    guests: Number(data.guests) || 1,
+    total_price: Number(data.totalPrice) || 0,
+    status: data.status || 'pending',
+    paystack_ref: data.paystackRef || '',
+  };
+}
+
+function mapInsertResult(inserted, data, bookingRef) {
+  if (!inserted) return null;
+  return {
+    id: inserted.id,
+    bookingRef: inserted.booking_reference || bookingRef,
+    userId: inserted.user_id || data.userId || null,
+    roomId: inserted.room_id,
+    roomName: inserted.room_name || '',
+    guestName: inserted.guest_name || '',
+    guestEmail: inserted.guest_email || '',
+    guestPhone: inserted.guest_phone || '',
+    country: inserted.country || '',
+    specialRequests: inserted.special_requests || '',
+    checkIn: inserted.check_in,
+    checkOut: inserted.check_out,
+    guests: inserted.guests,
+    totalPrice: Number(inserted.total_price) || 0,
+    status: inserted.status || 'pending',
+    paystackRef: inserted.paystack_ref || '',
+    paymentRef: '',
+  };
+}
+
+async function tryDirectInsert(data, bookingRef) {
+  const record = toSnakeBooking(data, bookingRef);
+  const { data: inserted, error } = await supabase
+    .from('bookings')
+    .insert(record)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return mapInsertResult(inserted, data, bookingRef);
+}
+
+async function tryRpc(data, bookingRef) {
+  const params = {
+    p_room_id: data.roomId,
+    p_room_name: data.roomName || '',
+    p_guest_name: data.guestName || '',
+    p_guest_email: data.guestEmail || '',
+    p_guest_phone: data.guestPhone || '',
+    p_country: data.country || '',
+    p_special_requests: data.specialRequests || '',
+    p_booking_reference: bookingRef,
+    p_check_in: data.checkIn,
+    p_check_out: data.checkOut,
+    p_guests: Number(data.guests) || 1,
+    p_total_price: Number(data.totalPrice) || 0,
+    p_status: data.status || 'pending',
+    p_paystack_ref: data.paystackRef || '',
+  };
+  const { data: result, error } = await supabase.rpc('create_booking_safe', params);
+  if (error) throw error;
+  if (!result || !result.success) throw new Error(result?.error || 'Booking failed');
+  return {
+    id: result.booking_id,
+    bookingRef: result.booking_reference || bookingRef,
+    userId: data.userId || null,
+    roomId: data.roomId,
+    roomName: data.roomName || '',
+    guestName: data.guestName || '',
+    guestEmail: data.guestEmail || '',
+    guestPhone: data.guestPhone || '',
+    country: data.country || '',
+    specialRequests: data.specialRequests || '',
+    checkIn: data.checkIn,
+    checkOut: data.checkOut,
+    guests: Number(data.guests) || 1,
+    totalPrice: Number(data.totalPrice) || 0,
+    status: result.status || data.status || 'pending',
+    paystackRef: data.paystackRef || '',
+    paymentRef: '',
+  };
+}
+
 export async function createBooking(data) {
   const bookingRef = generateBookingRef();
 
@@ -80,60 +176,27 @@ export async function createBooking(data) {
     return local.createBooking({ ...data, bookingRef });
   }
 
-  // Try Supabase RPC
+  // 1. Try direct insert (works if RLS policy allows it)
   try {
-    const params = {
-      p_room_id: data.roomId,
-      p_room_name: data.roomName || '',
-      p_guest_name: data.guestName || '',
-      p_guest_email: data.guestEmail || '',
-      p_guest_phone: data.guestPhone || '',
-      p_country: data.country || '',
-      p_special_requests: data.specialRequests || '',
-      p_booking_reference: bookingRef,
-      p_check_in: data.checkIn,
-      p_check_out: data.checkOut,
-      p_guests: Number(data.guests) || 1,
-      p_total_price: Number(data.totalPrice) || 0,
-      p_status: data.status || 'pending',
-      p_paystack_ref: data.paystackRef || '',
-    };
-    console.log('[createBooking] Calling RPC with:', JSON.stringify(params));
-
-    const { data: result, error } = await supabase.rpc('create_booking_safe', params);
-
-    if (error) {
-      console.error('[createBooking] RPC error:', error);
-      throw error;
-    }
-    if (!result || !result.success) {
-      console.error('[createBooking] RPC returned failure:', result);
-      throw new Error(result?.error || 'Booking failed');
-    }
-    console.log('[createBooking] RPC success:', result);
-    return {
-      id: result.booking_id,
-      bookingRef: result.booking_reference || bookingRef,
-      userId: data.userId || null,
-      roomId: data.roomId,
-      roomName: data.roomName || '',
-      guestName: data.guestName || '',
-      guestEmail: data.guestEmail || '',
-      guestPhone: data.guestPhone || '',
-      country: data.country || '',
-      specialRequests: data.specialRequests || '',
-      checkIn: data.checkIn,
-      checkOut: data.checkOut,
-      guests: Number(data.guests) || 1,
-      totalPrice: Number(data.totalPrice) || 0,
-      status: result.status || data.status || 'pending',
-      paystackRef: data.paystackRef || '',
-      paymentRef: '',
-    };
+    const result = await tryDirectInsert(data, bookingRef);
+    console.log('[createBooking] Direct insert succeeded');
+    return result;
   } catch (e) {
-    console.warn('[createBooking] Supabase booking failed, falling back to localStorage:', e);
-    return local.createBooking({ ...data, bookingRef });
+    console.warn('[createBooking] Direct insert failed, trying RPC:', e?.message || e);
   }
+
+  // 2. Try RPC (works if the create_booking_safe function exists)
+  try {
+    const result = await tryRpc(data, bookingRef);
+    console.log('[createBooking] RPC succeeded');
+    return result;
+  } catch (e) {
+    console.warn('[createBooking] RPC failed, falling back to localStorage:', e?.message || e);
+  }
+
+  // 3. Fallback to localStorage
+  console.log('[createBooking] Saving to localStorage');
+  return local.createBooking({ ...data, bookingRef });
 }
 
 export async function getBookings(userId) {

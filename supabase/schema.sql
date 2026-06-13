@@ -166,12 +166,31 @@ create policy "Guests can view bookings by email"
   on public.bookings for select
   using (auth.uid() IS NULL);
 
--- Block direct inserts — booking creation is only allowed through create_booking_safe() RPC
+-- Direct inserts: authenticated users can create their own bookings,
+-- anon users can create guest bookings (no user_id), and admins can create any.
 drop policy if exists "Anyone can create bookings" on public.bookings;
 drop policy if exists "Users can create own bookings" on public.bookings;
-create policy "Block direct inserts on bookings"
+drop policy if exists "Block direct inserts on bookings" on public.bookings;
+drop policy if exists "Authenticated users can insert bookings" on public.bookings;
+drop policy if exists "Guest users can insert bookings" on public.bookings;
+drop policy if exists "Admins can insert bookings" on public.bookings;
+
+create policy "Authenticated users can insert bookings"
   on public.bookings for insert
-  with check (false);
+  with check (auth.uid() = user_id);
+
+create policy "Guest users can insert bookings"
+  on public.bookings for insert
+  with check (
+    auth.uid() is null
+    and user_id is null
+    and guest_email is not null
+    and guest_email != ''
+  );
+
+create policy "Admins can insert bookings"
+  on public.bookings for insert
+  with check (public.is_admin());
 
 drop policy if exists "Admins can view all bookings" on public.bookings;
 create policy "Admins can view all bookings"
