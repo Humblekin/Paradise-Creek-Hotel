@@ -155,7 +155,12 @@ export async function getAllBookings() {
       .from('bookings')
       .select('*')
       .order('created_at', { ascending: false });
-    return (data || []).map(mapBooking);
+    const supabaseData = (data || []).map(mapBooking);
+    // Merge with localStorage data (covers fallback bookings)
+    const localData = local.getAllBookings();
+    if (!localData.length) return supabaseData;
+    const seen = new Set(supabaseData.map((b) => b.id));
+    return [...supabaseData, ...localData.filter((b) => !seen.has(b.id))];
   });
   if (isFallback(r)) return local.getAllBookings();
   return r;
