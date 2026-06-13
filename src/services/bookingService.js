@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import * as local from '../lib/localData';
 
 function generateBookingRef() {
@@ -86,11 +86,22 @@ export async function createBooking(data) {
       p_paystack_ref: data.paystackRef || '',
     };
     console.log('[createBooking] Calling RPC with:', JSON.stringify(params));
-    const { data: result, error } = await supabase.rpc('create_booking_safe', params);
-    if (error) {
-      console.error('[createBooking] RPC error:', error);
-      throw error;
+    // Use direct fetch to bypass Supabase client schema cache
+    const res = await fetch(`${supabaseUrl}/rest/v1/rpc/create_booking_safe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('[createBooking] RPC HTTP error:', res.status, errText);
+      throw new Error(errText || `HTTP ${res.status}`);
     }
+    const result = await res.json();
     if (!result || !result.success) {
       console.error('[createBooking] RPC returned failure:', result);
       throw new Error(result?.error || 'Booking failed');
