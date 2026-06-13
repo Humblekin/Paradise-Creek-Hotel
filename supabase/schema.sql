@@ -271,6 +271,13 @@ begin
 end;
 $$;
 
+-- Allow anon and authenticated roles to call this function via REST API
+grant execute on function public.create_booking_safe to anon, authenticated;
+
+-- Allow client-side role-checking functions
+grant execute on function public.get_my_role to anon, authenticated;
+grant execute on function public.is_admin to anon, authenticated;
+
 -- =============================================================
 -- 5. UPDATED_AT TRIGGER (auto-update on all tables)
 -- =============================================================
@@ -470,20 +477,21 @@ security definer
 set search_path = public
 as $$
 begin
-  perform
-    net.http_post(
-      url := 'https://nonteozyfshjeotbntpa.supabase.co/functions/v1/notify-booking',
-      headers := jsonb_build_object('Content-Type', 'application/json'),
-      body := jsonb_build_object('record', row_to_json(new)::jsonb)
-    );
+  -- Wrap in exception block so a pg_net failure doesn't kill the booking
+  begin
+    perform
+      net.http_post(
+        url := 'https://nonteozyfshjeotbntpa.supabase.co/functions/v1/notify-booking',
+        headers := jsonb_build_object('Content-Type', 'application/json'),
+        body := jsonb_build_object('record', row_to_json(new)::jsonb)
+      );
+  exception when others then
+    -- Log and swallow — booking insert must not fail over notification
+    raise warning 'notify_admin_on_booking failed: %', SQLERRM;
+  end;
   return new;
 end;
 $$;
-
-drop trigger if exists on_booking_created_notify on public.bookings;
-create trigger on_booking_created_notify
-  after insert on public.bookings
-  for each row execute function public.notify_admin_on_booking();
 
 -- Protect the role column: users cannot self-promote to admin
 -- Only admin-managed functions or direct DB updates should set role
