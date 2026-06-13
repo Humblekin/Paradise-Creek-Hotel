@@ -1,5 +1,7 @@
-import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import * as local from '../lib/localData';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function generateBookingRef() {
   const d = new Date();
@@ -37,6 +39,10 @@ function mapBooking(b) {
   };
 }
 
+function isLocalRoomId(roomId) {
+  return roomId && typeof roomId === 'string' && !UUID_RE.test(roomId);
+}
+
 let supabaseReady = false;
 let readyChecked = false;
 
@@ -44,7 +50,6 @@ async function checkSupabase() {
   if (readyChecked) return supabaseReady;
   readyChecked = true;
   try {
-    // Use rooms table (always publicly readable) instead of bookings (RLS-restricted)
     const { data, error } = await supabase.from('rooms').select('id').limit(1);
     if (error) { console.error('[bookingService] checkSupabase error:', error); supabaseReady = false; return false; }
     supabaseReady = Array.isArray(data);
@@ -68,7 +73,15 @@ function isFallback(r) {
 
 export async function createBooking(data) {
   const bookingRef = generateBookingRef();
-  const r = await sb(async () => {
+
+  // If the room ID is a short localStorage-style ID, skip Supabase entirely
+  if (isLocalRoomId(data.roomId)) {
+    console.log('[createBooking] Local room ID detected, saving to localStorage');
+    return local.createBooking({ ...data, bookingRef });
+  }
+
+  // Try Supabase RPC
+  try {
     const params = {
       p_room_id: data.roomId,
       p_room_name: data.roomName || '',
@@ -86,22 +99,13 @@ export async function createBooking(data) {
       p_paystack_ref: data.paystackRef || '',
     };
     console.log('[createBooking] Calling RPC with:', JSON.stringify(params));
-    // Use direct fetch to bypass Supabase client schema cache
-    const res = await fetch(`${supabaseUrl}/rest/v1/rpc/create_booking_safe`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
-      },
-      body: JSON.stringify(params),
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('[createBooking] RPC HTTP error:', res.status, errText);
-      throw new Error(errText || `HTTP ${res.status}`);
+
+    const { data: result, error } = await supabase.rpc('create_booking_safe', params);
+
+    if (error) {
+      console.error('[createBooking] RPC error:', error);
+      throw error;
     }
-    const result = await res.json();
     if (!result || !result.success) {
       console.error('[createBooking] RPC returned failure:', result);
       throw new Error(result?.error || 'Booking failed');
@@ -110,7 +114,7 @@ export async function createBooking(data) {
     return {
       id: result.booking_id,
       bookingRef: result.booking_reference || bookingRef,
-      userId: null,
+      userId: data.userId || null,
       roomId: data.roomId,
       roomName: data.roomName || '',
       guestName: data.guestName || '',
@@ -126,12 +130,10 @@ export async function createBooking(data) {
       paystackRef: data.paystackRef || '',
       paymentRef: '',
     };
-  });
-  if (isFallback(r)) {
-    console.warn('[createBooking] Falling back to localStorage');
+  } catch (e) {
+    console.warn('[createBooking] Supabase booking failed, falling back to localStorage:', e);
     return local.createBooking({ ...data, bookingRef });
   }
-  return r;
 }
 
 export async function getBookings(userId) {
