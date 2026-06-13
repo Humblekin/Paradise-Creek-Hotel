@@ -548,6 +548,56 @@ $$;
 -- =============================================================
 
 -- =============================================================
+-- 9c. HOTEL SETTINGS TABLE (for admin-managed chatbot info)
+-- Single-row table storing hotel details that the chatbot reads dynamically.
+-- =============================================================
+create table if not exists public.hotel_settings (
+  id integer primary key default 1 check (id = 1),  -- enforce single row
+  hotel_name text not null default 'Paradise Creek Hotel',
+  tagline text default 'Where Luxury Meets Serenity',
+  location text default 'Independence Ave, Accra, Ghana',
+  airport_distance text default '15 minutes from Kotoka International Airport',
+  phone text default '+233 30 277 1234',
+  email text default 'paradisecreekhotel@yahoo.com',
+  check_in_time text default '3:00 PM',
+  check_out_time text default '11:00 AM',
+  parking_info text default 'Complimentary valet parking available',
+  wifi_info text default 'Complimentary high-speed WiFi throughout the hotel',
+  restaurant_hours text default 'Breakfast 7-10AM, Lunch 12-3PM, Dinner 6-10PM',
+  room_service text default 'Available 24/7',
+  since_year text default '1999',
+  description text default 'A sanctuary where nature meets luxury — a legacy of excellence.',
+  amenities text[] default array[
+    'Infinity Pool', 'Fine Dining Restaurant', 'Spa & Wellness Center',
+    'Private Beach Access', 'Fitness Center', '24/7 Concierge', 'Farm-to-table cuisine'
+  ],
+  social_facebook text default 'https://www.facebook.com/ParadiseCreekHotel',
+  social_instagram text default '@paradisecreekg',
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Auto-insert the default row if missing
+insert into public.hotel_settings (id)
+values (1)
+on conflict (id) do nothing;
+
+alter table public.hotel_settings enable row level security;
+
+-- Anyone can read hotel settings (public info)
+drop policy if exists "Anyone can view hotel settings" on public.hotel_settings;
+create policy "Anyone can view hotel settings"
+  on public.hotel_settings for select
+  using (true);
+
+-- Only admins can update hotel settings
+drop policy if exists "Admins can update hotel settings" on public.hotel_settings;
+create policy "Admins can update hotel settings"
+  on public.hotel_settings for update
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- =============================================================
 -- 10. SEED DATA (optional — run after tables exist)
 -- =============================================================
 -- insert into public.rooms (title, description, category, price_per_night, max_guests, available_rooms, images, amenities, is_available) values

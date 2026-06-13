@@ -4,6 +4,7 @@ import { getRooms, addRoom, updateRoom, deleteRoom } from '../services/roomServi
 import { getAllBookings, updateBookingStatus } from '../services/bookingService';
 import { getUserProfile } from '../services/authService';
 import { uploadRoomImage } from '../services/storageService';
+import { getHotelSettings, updateHotelSettings } from '../services/hotelSettingsService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import './DashboardPage.css';
@@ -12,7 +13,8 @@ const tabs = [
   { key: 'overview', label: 'Overview', icon: 'fa-chart-pie' },
   { key: 'rooms', label: 'Rooms', icon: 'fa-bed' },
   { key: 'bookings', label: 'Bookings', icon: 'fa-calendar-alt' },
-  { key: 'payments', label: 'Payments', icon: 'fa-credit-card' }
+  { key: 'payments', label: 'Payments', icon: 'fa-credit-card' },
+  { key: 'settings', label: 'Settings', icon: 'fa-cog' }
 ];
 
 const categories = ['standard', 'deluxe', 'suite', 'penthouse'];
@@ -44,6 +46,10 @@ export default function DashboardPage() {
   useEffect(() => {
     getRooms().then(setRooms);
     getAllBookings().then(setBookings);
+    getHotelSettings().then((s) => {
+      setHotelSettings(s);
+      if (s) setSettingsForm({ ...s });
+    });
   }, []);
 
   useEffect(() => {
@@ -62,6 +68,9 @@ export default function DashboardPage() {
   const [imagePreviews, setImagePreviews] = useState([]);
   const fileInputRef = useRef(null);
   const [bookingSearch, setBookingSearch] = useState('');
+  const [hotelSettings, setHotelSettings] = useState(null);
+  const [settingsForm, setSettingsForm] = useState(null);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const paidOrConfirmedBookings = useMemo(
     () => (bookings || []).filter((b) => ['paid', 'confirmed', 'checked_in', 'checked_out'].includes(b.status)),
@@ -555,6 +564,122 @@ export default function DashboardPage() {
     );
   };
 
+  const renderSettings = () => {
+    if (!settingsForm) {
+      return <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>Loading settings...</p>;
+    }
+
+    const handleChange = (field) => (e) => {
+      const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+      setSettingsForm((prev) => ({ ...prev, [field]: val }));
+    };
+
+    const handleAmenitiesChange = (e) => {
+      setSettingsForm((prev) => ({ ...prev, amenities: e.target.value.split(',').map((a) => a.trim()).filter(Boolean) }));
+    };
+
+    const handleSave = async () => {
+      setSavingSettings(true);
+      try {
+        await updateHotelSettings(settingsForm);
+        setHotelSettings({ ...settingsForm });
+        addToast('Settings saved successfully', 'success');
+      } catch {
+        addToast('Failed to save settings', 'error');
+      } finally {
+        setSavingSettings(false);
+      }
+    };
+
+    return (
+      <div className="dashboard-section">
+        <div className="dashboard-section-header">
+          <h2>Hotel Settings</h2>
+          <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={savingSettings}>
+            {savingSettings ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 24, fontSize: '0.85rem' }}>
+          These details are used by the chatbot and displayed across the site.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 800 }}>
+          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <label className="form-label">Hotel Name</label>
+            <input className="form-input" value={settingsForm.hotelName} onChange={handleChange('hotelName')} />
+          </div>
+          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <label className="form-label">Tagline</label>
+            <input className="form-input" value={settingsForm.tagline} onChange={handleChange('tagline')} />
+          </div>
+          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <label className="form-label">Description</label>
+            <textarea className="form-input" rows={3} value={settingsForm.description} onChange={handleChange('description')} />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Location / Address</label>
+            <input className="form-input" value={settingsForm.location} onChange={handleChange('location')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Distance from Airport</label>
+            <input className="form-input" value={settingsForm.airportDistance} onChange={handleChange('airportDistance')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Phone</label>
+            <input className="form-input" value={settingsForm.phone} onChange={handleChange('phone')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Email</label>
+            <input className="form-input" value={settingsForm.email} onChange={handleChange('email')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Check-In Time</label>
+            <input className="form-input" value={settingsForm.checkInTime} onChange={handleChange('checkInTime')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Check-Out Time</label>
+            <input className="form-input" value={settingsForm.checkOutTime} onChange={handleChange('checkOutTime')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Restaurant Hours</label>
+            <input className="form-input" value={settingsForm.restaurantHours} onChange={handleChange('restaurantHours')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Room Service</label>
+            <input className="form-input" value={settingsForm.roomService} onChange={handleChange('roomService')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Parking Info</label>
+            <input className="form-input" value={settingsForm.parkingInfo} onChange={handleChange('parkingInfo')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">WiFi Info</label>
+            <input className="form-input" value={settingsForm.wifiInfo} onChange={handleChange('wifiInfo')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Since Year</label>
+            <input className="form-input" value={settingsForm.sinceYear} onChange={handleChange('sinceYear')} />
+          </div>
+
+          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <label className="form-label">Amenities (comma-separated)</label>
+            <input className="form-input" value={(settingsForm.amenities || []).join(', ')} onChange={handleAmenitiesChange} />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Facebook URL</label>
+            <input className="form-input" value={settingsForm.socialFacebook} onChange={handleChange('socialFacebook')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Instagram Handle</label>
+            <input className="form-input" value={settingsForm.socialInstagram} onChange={handleChange('socialInstagram')} />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const currentTab = tabs.find((t) => t.key === activeTab);
 
   return (
@@ -592,6 +717,7 @@ export default function DashboardPage() {
         {activeTab === 'rooms' && renderRooms()}
         {activeTab === 'bookings' && renderBookings()}
         {activeTab === 'payments' && renderPayments()}
+        {activeTab === 'settings' && renderSettings()}
       </main>
 
       {roomModalOpen && (
