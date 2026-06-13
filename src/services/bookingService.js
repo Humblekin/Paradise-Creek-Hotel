@@ -68,7 +68,7 @@ function isFallback(r) {
 
 export async function createBooking(data) {
   const bookingRef = generateBookingRef();
-  const r = await sb(async () => {
+  try {
     const { data: result, error } = await supabase.rpc('create_booking_safe', {
       p_room_id: data.roomId,
       p_room_name: data.roomName || '',
@@ -85,8 +85,15 @@ export async function createBooking(data) {
       p_status: data.status || 'pending',
       p_paystack_ref: data.paystackRef || '',
     });
-    if (error) throw error;
-    if (!result || !result.success) throw new Error(result?.error || 'Booking failed');
+    if (error) {
+      console.error('[createBooking] RPC error:', error);
+      throw error;
+    }
+    if (!result || !result.success) {
+      console.error('[createBooking] RPC returned failure:', result);
+      throw new Error(result?.error || 'Booking failed');
+    }
+    console.log('[createBooking] Success:', result);
     return {
       id: result.booking_id,
       bookingRef: result.booking_reference || bookingRef,
@@ -106,9 +113,10 @@ export async function createBooking(data) {
       paystackRef: data.paystackRef || '',
       paymentRef: '',
     };
-  });
-  if (isFallback(r)) return local.createBooking({ ...data, bookingRef });
-  return r;
+  } catch (e) {
+    console.error('[createBooking] Exception:', e.message || e);
+    return local.createBooking({ ...data, bookingRef });
+  }
 }
 
 export async function getBookings(userId) {
