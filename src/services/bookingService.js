@@ -68,8 +68,8 @@ function isFallback(r) {
 
 export async function createBooking(data) {
   const bookingRef = generateBookingRef();
-  try {
-    const { data: result, error } = await supabase.rpc('create_booking_safe', {
+  const r = await sb(async () => {
+    const params = {
       p_room_id: data.roomId,
       p_room_name: data.roomName || '',
       p_guest_name: data.guestName || '',
@@ -84,7 +84,9 @@ export async function createBooking(data) {
       p_total_price: Number(data.totalPrice) || 0,
       p_status: data.status || 'pending',
       p_paystack_ref: data.paystackRef || '',
-    });
+    };
+    console.log('[createBooking] Calling RPC with:', JSON.stringify(params));
+    const { data: result, error } = await supabase.rpc('create_booking_safe', params);
     if (error) {
       console.error('[createBooking] RPC error:', error);
       throw error;
@@ -93,7 +95,7 @@ export async function createBooking(data) {
       console.error('[createBooking] RPC returned failure:', result);
       throw new Error(result?.error || 'Booking failed');
     }
-    console.log('[createBooking] Success:', result);
+    console.log('[createBooking] RPC success:', result);
     return {
       id: result.booking_id,
       bookingRef: result.booking_reference || bookingRef,
@@ -113,10 +115,12 @@ export async function createBooking(data) {
       paystackRef: data.paystackRef || '',
       paymentRef: '',
     };
-  } catch (e) {
-    console.error('[createBooking] Exception:', e.message || e);
+  });
+  if (isFallback(r)) {
+    console.warn('[createBooking] Falling back to localStorage');
     return local.createBooking({ ...data, bookingRef });
   }
+  return r;
 }
 
 export async function getBookings(userId) {
