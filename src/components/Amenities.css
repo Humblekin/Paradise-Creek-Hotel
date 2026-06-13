@@ -1,0 +1,81 @@
+.amenities-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 24px;
+}
+
+.amenity-card {
+  text-align: center;
+  padding: 32px 16px;
+  transition: all var(--transition);
+  cursor: default;
+}
+
+.amenity-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 40px rgba(52, 211, 153, 0.1);
+}
+
+.amenity-icon-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(52, 211, 153, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  animation: amenityFloat 3s ease-in-out infinite;
+}
+
+.amenity-card:hover .amenity-icon-circle {
+  animation-duration: 1.5s;
+}
+
+.amenity-icon-circle .fas {
+  color: var(--gold);
+  font-size: 1.25rem;
+}
+
+@keyframes amenityFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.amenity-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 0.875rem;
+  color: var(--text);
+  margin-bottom: 0;
+}
+
+.stagger-children {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease, border-color var(--transition), box-shadow var(--transition);
+}
+
+.stagger-children.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 767px) {
+  .amenities-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .amenity-card {
+    padding: 24px 12px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .amenities-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

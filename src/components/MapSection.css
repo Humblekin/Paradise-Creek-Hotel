@@ -1,0 +1,50 @@
+.map-container {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  height: 320px;
+  position: relative;
+}
+
+.map-container iframe {
+  display: block;
+}
+
+.map-info-card {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  max-width: 280px;
+}
+
+.map-info-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.1rem;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.map-info-address {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.glass-strong {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+}
+
+@media (max-width: 768px) {
+  .map-container {
+    height: 260px;
+  }
+  .map-info-card {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    max-width: none;
+  }
+}
