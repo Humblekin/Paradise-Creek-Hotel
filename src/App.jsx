@@ -41,7 +41,7 @@ function AppContent() {
         </Routes>
       </main>
       {!isDashboard && <Footer />}
-      <ChatBot />
+      {!isDashboard && <ChatBot />}
       <Toast />
       <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
     </>

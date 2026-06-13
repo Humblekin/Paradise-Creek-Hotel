@@ -146,7 +146,7 @@ serve(async (req) => {
       })
     }
 
-    const { message } = body as { message: unknown }
+    const { message, history } = body as { message: unknown, history?: {role: string, content: string}[] }
     if (typeof message !== 'string' || message.trim().length === 0) {
       return new Response(JSON.stringify({ error: 'Message must be a non-empty string' }), {
         status: 400,
@@ -163,6 +163,20 @@ serve(async (req) => {
 
     const systemPrompt = buildSystemPrompt(settings, rooms)
 
+    const chatMessages: { role: string, content: string }[] = [
+      { role: 'system', content: systemPrompt }
+    ]
+
+    if (Array.isArray(history)) {
+      for (const m of history.slice(-10)) {
+        if (m && typeof m.role === 'string' && typeof m.content === 'string') {
+          chatMessages.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content })
+        }
+      }
+    }
+
+    chatMessages.push({ role: 'user', content: sanitized })
+
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -171,10 +185,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: sanitized },
-        ],
+        messages: chatMessages,
         max_tokens: 300,
         temperature: 0.7,
       }),

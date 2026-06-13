@@ -35,24 +35,35 @@ function toSnake(data) {
 }
 
 let supabaseReady = false;
-let readyChecked = false;
+let lastCheckTime = 0;
+const CHECK_INTERVAL_MS = 30_000;
 
 async function checkSupabase() {
-  if (readyChecked) return supabaseReady;
-  readyChecked = true;
+  const now = Date.now();
+  if (supabaseReady && (now - lastCheckTime) < CHECK_INTERVAL_MS) return true;
+
   try {
-    const { data } = await supabase.from('rooms').select('id').limit(1);
-    supabaseReady = Array.isArray(data);
-  } catch {
+    const { data, error } = await supabase.from('rooms').select('id').limit(1);
+    if (error) {
+      console.warn('[roomService] checkSupabase error:', error.message);
+      supabaseReady = false;
+    } else {
+      supabaseReady = Array.isArray(data);
+    }
+  } catch (e) {
+    console.warn('[roomService] checkSupabase exception:', e);
     supabaseReady = false;
   }
+  lastCheckTime = now;
   return supabaseReady;
 }
 
 async function sb(op) {
   try {
-    if (supabaseReady || await checkSupabase()) return await op();
-  } catch { /* fall through */ }
+    if (await checkSupabase()) return await op();
+  } catch (e) {
+    console.error('[roomService] Supabase operation failed:', e);
+  }
   return { __fallback: true };
 }
 

@@ -43,33 +43,48 @@ function isLocalRoomId(roomId) {
   return roomId && typeof roomId === 'string' && !UUID_RE.test(roomId);
 }
 
+// ---------- Supabase connectivity check ----------
+// Re-check periodically instead of caching forever, so transient failures don't
+// permanently lock users into localStorage mode.
 let supabaseReady = false;
-let readyChecked = false;
+let lastCheckTime = 0;
+const CHECK_INTERVAL_MS = 30_000; // re-check every 30 seconds after a failure
 
 async function checkSupabase() {
-  if (readyChecked) return supabaseReady;
-  readyChecked = true;
+  const now = Date.now();
+  // If we already know it's ready and checked recently, skip
+  if (supabaseReady && (now - lastCheckTime) < CHECK_INTERVAL_MS) return true;
+
   try {
     const { data, error } = await supabase.from('rooms').select('id').limit(1);
-    if (error) { console.error('[bookingService] checkSupabase error:', error); supabaseReady = false; return false; }
-    supabaseReady = Array.isArray(data);
+    if (error) {
+      console.warn('[bookingService] checkSupabase error:', error.message);
+      supabaseReady = false;
+    } else {
+      supabaseReady = Array.isArray(data);
+    }
   } catch (e) {
-    console.error('[bookingService] checkSupabase exception:', e);
+    console.warn('[bookingService] checkSupabase exception:', e);
     supabaseReady = false;
   }
+  lastCheckTime = now;
   return supabaseReady;
 }
 
 async function sb(op) {
   try {
-    if (supabaseReady || await checkSupabase()) return await op();
-  } catch (e) { console.error('[bookingService] Supabase operation failed:', e); }
+    if (await checkSupabase()) return await op();
+  } catch (e) {
+    console.error('[bookingService] Supabase operation failed:', e);
+  }
   return { __fallback: true };
 }
 
 function isFallback(r) {
   return r && r.__fallback === true;
 }
+
+// ---------- Helpers ----------
 
 function toSnakeBooking(data, bookingRef) {
   return {
@@ -89,6 +104,7 @@ function toSnakeBooking(data, bookingRef) {
     total_price: Number(data.totalPrice) || 0,
     status: data.status || 'pending',
     paystack_ref: data.paystackRef || '',
+    payment_ref: data.paystackRef || '',
   };
 }
 
@@ -111,21 +127,49 @@ function mapInsertResult(inserted, data, bookingRef) {
     totalPrice: Number(inserted.total_price) || 0,
     status: inserted.status || 'pending',
     paystackRef: inserted.paystack_ref || '',
-    paymentRef: '',
+    paymentRef: inserted.payment_ref || inserted.paystack_ref || '',
   };
 }
 
-async function tryDirectInsert(data, bookingRef) {
+// ---------- Get the current Supabase auth user ID ----------
+async function getAuthUserId() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------- Direct insert (for authenticated users) ----------
+async function tryDirectInsert(data, bookingRef, authUserId) {
   const record = toSnakeBooking(data, bookingRef);
+
+  // Ensure user_id matches the actual Supabase session user
+  // This is critical: RLS policy requires auth.uid() = user_id
+  if (authUserId) {
+    record.user_id = authUserId;
+  }
+
+  console.log('[createBooking] Attempting direct insert with record:', {
+    ...record,
+    user_id: record.user_id ? record.user_id.substring(0, 8) + '...' : null,
+  });
+
   const { data: inserted, error } = await supabase
     .from('bookings')
     .insert(record)
     .select()
     .maybeSingle();
-  if (error) throw error;
+
+  if (error) {
+    console.error('[createBooking] Direct insert error:', error.message, error.details, error.hint);
+    throw error;
+  }
   return mapInsertResult(inserted, data, bookingRef);
 }
 
+// ---------- RPC insert (uses security definer, handles conflict prevention) ----------
 async function tryRpc(data, bookingRef) {
   const params = {
     p_room_id: data.roomId,
@@ -143,9 +187,22 @@ async function tryRpc(data, bookingRef) {
     p_status: data.status || 'pending',
     p_paystack_ref: data.paystackRef || '',
   };
+
+  console.log('[createBooking] Attempting RPC create_booking_safe');
+
   const { data: result, error } = await supabase.rpc('create_booking_safe', params);
-  if (error) throw error;
-  if (!result || !result.success) throw new Error(result?.error || 'Booking failed');
+  if (error) {
+    console.error('[createBooking] RPC error:', error.message, error.details, error.hint);
+    throw error;
+  }
+  if (!result || !result.success) {
+    const errMsg = result?.error || 'Booking failed';
+    console.error('[createBooking] RPC returned failure:', errMsg);
+    throw new Error(errMsg);
+  }
+
+  console.log('[createBooking] RPC succeeded:', result);
+
   return {
     id: result.booking_id,
     bookingRef: result.booking_reference || bookingRef,
@@ -163,10 +220,13 @@ async function tryRpc(data, bookingRef) {
     totalPrice: Number(data.totalPrice) || 0,
     status: result.status || data.status || 'pending',
     paystackRef: data.paystackRef || '',
-    paymentRef: '',
+    paymentRef: data.paystackRef || '',
   };
 }
 
+// ================================================================
+// CREATE BOOKING — main entry point
+// ================================================================
 export async function createBooking(data) {
   const bookingRef = generateBookingRef();
 
@@ -176,36 +236,68 @@ export async function createBooking(data) {
     return local.createBooking({ ...data, bookingRef });
   }
 
-  // 1. Try direct insert (works if RLS policy allows it)
-  try {
-    const result = await tryDirectInsert(data, bookingRef);
-    console.log('[createBooking] Direct insert succeeded');
-    return result;
-  } catch (e) {
-    console.warn('[createBooking] Direct insert failed, trying RPC:', e?.message || e);
+  // Check if Supabase is reachable
+  const isConnected = await checkSupabase();
+  if (!isConnected) {
+    console.warn('[createBooking] Supabase not reachable, saving to localStorage');
+    return local.createBooking({ ...data, bookingRef });
   }
 
-  // 2. Try RPC (works if the create_booking_safe function exists)
-  try {
-    const result = await tryRpc(data, bookingRef);
-    console.log('[createBooking] RPC succeeded');
-    return result;
-  } catch (e) {
-    console.warn('[createBooking] RPC failed, falling back to localStorage:', e?.message || e);
+  // Get the current authenticated user ID from the actual Supabase session
+  const authUserId = await getAuthUserId();
+  console.log('[createBooking] Auth user ID:', authUserId ? authUserId.substring(0, 8) + '...' : 'none (guest)');
+
+  // Ensure the data.userId matches the session — this prevents RLS mismatches
+  const bookingData = { ...data };
+  if (authUserId) {
+    bookingData.userId = authUserId;
+  } else {
+    // Guest booking — user_id must be null
+    bookingData.userId = null;
   }
 
-  // 3. Fallback to localStorage
-  console.log('[createBooking] Saving to localStorage');
-  return local.createBooking({ ...data, bookingRef });
+  // 1. Try RPC first — it's safer (row-level locking, conflict prevention)
+  try {
+    const result = await tryRpc(bookingData, bookingRef);
+    console.log('[createBooking] ✅ RPC succeeded — booking saved to Supabase');
+    return result;
+  } catch (e) {
+    console.warn('[createBooking] RPC failed:', e?.message || e);
+  }
+
+  // 2. Fallback: try direct insert
+  try {
+    const result = await tryDirectInsert(bookingData, bookingRef, authUserId);
+    console.log('[createBooking] ✅ Direct insert succeeded — booking saved to Supabase');
+    return result;
+  } catch (e) {
+    console.warn('[createBooking] Direct insert failed:', e?.message || e);
+  }
+
+  // 3. Last resort: localStorage
+  console.warn('[createBooking] ⚠️ All Supabase methods failed — saving to localStorage as fallback');
+  return local.createBooking({ ...bookingData, bookingRef });
 }
 
+// ================================================================
+// READ OPERATIONS
+// ================================================================
+
 export async function getBookings(userId) {
+  // Also get the real auth user ID to query correctly
+  const authUserId = await getAuthUserId();
+  const queryId = authUserId || userId;
+
   const r = await sb(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', queryId)
       .order('created_at', { ascending: false });
+    if (error) {
+      console.error('[getBookings] error:', error.message);
+      throw error;
+    }
     return (data || []).map(mapBooking);
   });
   if (isFallback(r)) return local.getBookings(userId);
@@ -214,11 +306,15 @@ export async function getBookings(userId) {
 
 export async function getBookingsByEmail(email) {
   const r = await sb(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .select('*')
       .eq('guest_email', email)
       .order('created_at', { ascending: false });
+    if (error) {
+      console.error('[getBookingsByEmail] error:', error.message);
+      throw error;
+    }
     return (data || []).map(mapBooking);
   });
   if (isFallback(r)) return [];
@@ -227,11 +323,15 @@ export async function getBookingsByEmail(email) {
 
 export async function getBookingByRef(ref) {
   const r = await sb(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .select('*')
       .eq('booking_reference', ref)
       .maybeSingle();
+    if (error) {
+      console.error('[getBookingByRef] error:', error.message);
+      throw error;
+    }
     return mapBooking(data);
   });
   if (isFallback(r)) return null;
@@ -240,10 +340,14 @@ export async function getBookingByRef(ref) {
 
 export async function getAllBookings() {
   const r = await sb(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .select('*')
       .order('created_at', { ascending: false });
+    if (error) {
+      console.error('[getAllBookings] error:', error.message);
+      throw error;
+    }
     const supabaseData = (data || []).map(mapBooking);
     // Merge with localStorage data (covers fallback bookings)
     const localData = local.getAllBookings();
@@ -258,11 +362,15 @@ export async function getAllBookings() {
 export async function searchBookings(query) {
   const term = `%${query}%`;
   const r = await sb(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .select('*')
       .or(`booking_reference.ilike.${term},guest_email.ilike.${term},guest_phone.ilike.${term},guest_name.ilike.${term}`)
       .order('created_at', { ascending: false });
+    if (error) {
+      console.error('[searchBookings] error:', error.message);
+      throw error;
+    }
     return (data || []).map(mapBooking);
   });
   if (isFallback(r)) return local.getAllBookings().filter(b =>
@@ -274,6 +382,10 @@ export async function searchBookings(query) {
   return r;
 }
 
+// ================================================================
+// UPDATE OPERATIONS
+// ================================================================
+
 export async function updateBookingStatus(id, status) {
   const r = await sb(async () => {
     const updates = { status };
@@ -283,7 +395,10 @@ export async function updateBookingStatus(id, status) {
       .from('bookings')
       .update(updates)
       .eq('id', id);
-    if (error) throw error;
+    if (error) {
+      console.error('[updateBookingStatus] error:', error.message);
+      throw error;
+    }
     return true;
   });
   if (isFallback(r)) return local.updateBookingStatus(id, status);
@@ -300,12 +415,19 @@ export async function payBooking(id, paymentRef) {
         paid_at: new Date().toISOString()
       })
       .eq('id', id);
-    if (error) throw error;
+    if (error) {
+      console.error('[payBooking] error:', error.message);
+      throw error;
+    }
     return true;
   });
   if (isFallback(r)) return local.payBooking(id, paymentRef);
   return r;
 }
+
+// ================================================================
+// CONTACTS
+// ================================================================
 
 export async function submitContact(data) {
   const r = await sb(async () => {
@@ -315,7 +437,10 @@ export async function submitContact(data) {
       subject: data.subject,
       message: data.message
     });
-    if (error) throw error;
+    if (error) {
+      console.error('[submitContact] error:', error.message);
+      throw error;
+    }
     return true;
   });
   if (isFallback(r)) return local.submitContact(data);

@@ -30,7 +30,7 @@ export default function ChatBot() {
   useEffect(() => {
     if (open && !hasOpened) {
       setHasOpened(true);
-      setMessages([{ role: 'bot', text: "Hello! Welcome to Paradise Creek Hotel. How can I help you today? You can ask about rooms, bookings, amenities, or contact info." }]);
+      // Removed automatic welcome message so chat starts empty
     }
   }, [open, hasOpened]);
 
@@ -60,7 +60,13 @@ export default function ChatBot() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
           },
-          body: JSON.stringify({ message: text })
+          body: JSON.stringify({
+            message: text,
+            history: messages.map(m => ({
+              role: m.role === 'bot' ? 'assistant' : 'user',
+              content: m.text
+            }))
+          })
         }
       );
       if (!res.ok) {
@@ -79,6 +85,10 @@ export default function ChatBot() {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleSend();
+  };
+
+  const handleClearChat = () => {
+    setMessages([]);
   };
 
   const toggleOpen = () => setOpen((prev) => !prev);
@@ -103,6 +113,15 @@ export default function ChatBot() {
               <span className="chat-header-name">Paradise Assistant</span>
               <span className="chat-header-status">Online</span>
             </div>
+            <button 
+              onClick={handleClearChat}
+              title="Clear Conversation"
+              style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '1rem', padding: '4px 8px' }}
+              onMouseOver={(e) => e.currentTarget.style.color = 'white'}
+              onMouseOut={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
+            >
+              <i className="fas fa-trash-alt"></i>
+            </button>
           </div>
 
           <div className="chat-messages">

@@ -38,9 +38,11 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3);
-  z-index: 900;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  z-index: 1001; /* Higher than navbar (999) */
   animation: chatIn 0.3s ease;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
 }
 
 @keyframes chatIn {
@@ -256,7 +258,8 @@
     width: calc(100vw - 32px);
     right: 16px;
     bottom: 84px;
-    height: min(460px, calc(100vh - 180px));
+    height: 460px;
+    max-height: calc(100vh - 160px);
   }
 
   .chat-float {
@@ -273,7 +276,8 @@
     width: calc(100vw - 24px);
     right: 12px;
     bottom: 76px;
-    height: min(420px, calc(100vh - 170px));
+    height: 420px;
+    max-height: calc(100vh - 150px);
     border-radius: var(--radius);
   }
 

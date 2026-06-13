@@ -32,7 +32,8 @@ export function initLocalData() {
   const seedIds = new Set(roomsData.map(r => r.id));
   const existingRooms = read(KEYS.rooms);
   const filtered = existingRooms.filter(r => !seedIds.has(r.id));
-  write(KEYS.rooms, filtered);
+  // Re-add the pristine seed rooms, keeping any user-added rooms
+  write(KEYS.rooms, [...roomsData, ...filtered]);
 
   const existingBookings = read(KEYS.bookings);
   const filteredBookings = existingBookings.filter(b => !seedIds.has(b.roomId));

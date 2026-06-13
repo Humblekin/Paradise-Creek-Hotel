@@ -52,7 +52,8 @@ export default function Navbar({ onOpenAuth }) {
     { path: '/', label: 'Home', icon: 'fa-home' },
     { path: '/rooms', label: 'Rooms', icon: 'fa-bed' },
     { path: '/about', label: 'About', icon: 'fa-info-circle' },
-    { path: '/contact', label: 'Contact', icon: 'fa-envelope' }
+    { path: '/contact', label: 'Contact', icon: 'fa-envelope' },
+    { path: '/my-bookings', label: 'My Bookings', icon: 'fa-calendar-check' }
   ];
 
   const handleLogout = async () => {
