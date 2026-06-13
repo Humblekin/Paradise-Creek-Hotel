@@ -84,7 +84,41 @@
 
 @media (max-width: 768px) {
   .testimonial-card {
-    min-width: 280px;
-    max-width: 280px;
+    min-width: 260px;
+    max-width: 260px;
+    padding: 20px;
+  }
+
+  .testimonials-track {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .testimonial-card {
+    min-width: 220px;
+    max-width: 220px;
+    padding: 16px;
+  }
+
+  .testimonials-track {
+    gap: 12px;
+  }
+
+  .testimonial-quote {
+    font-size: 0.8rem;
+  }
+
+  .testimonial-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .testimonial-name {
+    font-size: 0.8rem;
+  }
+
+  .testimonial-location {
+    font-size: 0.7rem;
   }
 }
