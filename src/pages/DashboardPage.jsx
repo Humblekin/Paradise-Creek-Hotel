@@ -4,7 +4,7 @@ import { getRooms, addRoom, updateRoom, deleteRoom } from '../services/roomServi
 import { getAllBookings, updateBookingStatus } from '../services/bookingService';
 import { getUserProfile } from '../services/authService';
 import { uploadRoomImage } from '../services/storageService';
-import { getHotelSettings, updateHotelSettings } from '../services/hotelSettingsService';
+import { getHotelSettings, updateHotelSettings, createSubaccount } from '../services/hotelSettingsService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import './DashboardPage.css';
@@ -71,6 +71,8 @@ export default function DashboardPage() {
   const [hotelSettings, setHotelSettings] = useState(null);
   const [settingsForm, setSettingsForm] = useState(null);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [subaccountMessage, setSubaccountMessage] = useState(null);
+  const [subaccountLoading, setSubaccountLoading] = useState(false);
 
   const paidOrConfirmedBookings = useMemo(
     () => (bookings || []).filter((b) => ['paid', 'confirmed', 'checked_in', 'checked_out'].includes(b.status)),
@@ -237,6 +239,46 @@ export default function DashboardPage() {
       );
     } catch {
       addToast('Failed to update status', 'error');
+    }
+  };
+
+  const handleDeleteSubaccount = async () => {
+    if (!window.confirm('Remove subaccount configuration? This will not delete the subaccount on Paystack.')) return;
+    try {
+      await updateHotelSettings({
+        ...settingsForm,
+        subaccountCode: '',
+        subaccountStatus: '',
+      });
+      const fresh = await getHotelSettings();
+      if (fresh) {
+        setHotelSettings(fresh);
+        setSettingsForm({ ...fresh });
+      }
+      setSubaccountMessage({ type: 'success', text: 'Subaccount code removed' });
+      addToast('Subaccount removed', 'success');
+    } catch {
+      addToast('Failed to remove', 'error');
+    }
+  };
+
+  const handleCreateSubaccount = async () => {
+    setSubaccountMessage(null);
+    setSubaccountLoading(true);
+    try {
+      const result = await createSubaccount(settingsForm);
+      const fresh = await getHotelSettings();
+      if (fresh) {
+        setHotelSettings(fresh);
+        setSettingsForm({ ...fresh });
+      }
+      setSubaccountMessage({ type: 'success', text: result.message });
+      addToast(result.message, 'success');
+    } catch (e) {
+      setSubaccountMessage({ type: 'error', text: e.message });
+      addToast(e.message, 'error');
+    } finally {
+      setSubaccountLoading(false);
     }
   };
 
@@ -675,6 +717,188 @@ export default function DashboardPage() {
             <label className="form-label">Instagram Handle</label>
             <input className="form-input" value={settingsForm.socialInstagram} onChange={handleChange('socialInstagram')} />
           </div>
+        </div>
+
+        <hr className="dashboard-divider" />
+
+        <div className="dashboard-section-header">
+          <h2>Payment Settings</h2>
+        </div>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 24, fontSize: '0.85rem' }}>
+          Configure Paystack subaccount so payments settle directly to your bank account or mobile money.
+        </p>
+
+        <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {settingsForm.subaccountCode && (
+            <div style={{ padding: '12px 16px', borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 600 }}>Subaccount:</span>
+                <code style={{ fontSize: '0.85rem', padding: '2px 8px', background: 'rgba(212,168,83,0.1)', borderRadius: 4, color: 'var(--gold)' }}>
+                  {settingsForm.subaccountCode}
+                </code>
+                <span className={`dashboard-status-badge ${settingsForm.subaccountStatus === 'active' ? 'available' : 'busy'}`}>
+                  {settingsForm.subaccountStatus || 'unknown'}
+                </span>
+                <button
+                  className="dashboard-action-btn delete"
+                  onClick={handleDeleteSubaccount}
+                  style={{ padding: '4px 12px', cursor: 'pointer', fontSize: '0.8rem', marginLeft: 'auto' }}
+                >
+                  <i className="fas fa-trash"></i> Remove
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="form-group">
+            <label className="form-label">Already have a subaccount code? Paste it here:</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                className="form-input"
+                style={{ flex: 1 }}
+                value={settingsForm.subaccountCode}
+                onChange={(e) => setSettingsForm((prev) => ({ ...prev, subaccountCode: e.target.value }))}
+                placeholder="ACCT_xxxxxxxxx"
+              />
+              <button
+                className="btn btn-primary"
+                style={{ whiteSpace: 'nowrap' }}
+                onClick={async () => {
+                  if (!settingsForm.subaccountCode.trim()) {
+                    addToast('Enter a subaccount code', 'error');
+                    return;
+                  }
+                  try {
+                    await updateHotelSettings({
+                      ...settingsForm,
+                      subaccountStatus: 'active'
+                    });
+                    setHotelSettings({ ...settingsForm, subaccountStatus: 'active' });
+                    setSettingsForm((prev) => ({ ...prev, subaccountStatus: 'active' }));
+                    addToast('Subaccount code saved', 'success');
+                  } catch {
+                    addToast('Failed to save', 'error');
+                  }
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+
+          <details style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <summary style={{ marginBottom: 8 }}>Or create a new one via Paystack</summary>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginTop: 8 }}>
+            <h3 style={{ marginBottom: 16, fontSize: '1rem' }}>
+              {settingsForm.subaccountCode ? 'Update Subaccount' : 'Create Paystack Subaccount'}
+            </h3>
+
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <label className="form-label">Settlement Type</label>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <label className="form-checkbox" style={{ fontWeight: settingsForm.settlementType === 'bank' ? 700 : 400 }}>
+                  <input
+                    type="radio"
+                    name="settlementType"
+                    value="bank"
+                    checked={settingsForm.settlementType === 'bank'}
+                    onChange={() => setSettingsForm((prev) => ({ ...prev, settlementType: 'bank' }))}
+                  />
+                  <span>Bank Account</span>
+                </label>
+                <label className="form-checkbox" style={{ fontWeight: settingsForm.settlementType === 'mobile_money' ? 700 : 400 }}>
+                  <input
+                    type="radio"
+                    name="settlementType"
+                    value="mobile_money"
+                    checked={settingsForm.settlementType === 'mobile_money'}
+                    onChange={() => setSettingsForm((prev) => ({ ...prev, settlementType: 'mobile_money' }))}
+                  />
+                  <span>Mobile Money</span>
+                </label>
+              </div>
+            </div>
+
+            {settingsForm.settlementType === 'bank' ? (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Bank Name / Code</label>
+                  <input
+                    className="form-input"
+                    value={settingsForm.settlementBank}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, settlementBank: e.target.value }))}
+                    placeholder="e.g. Access Bank (044)"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Account Number</label>
+                  <input
+                    className="form-input"
+                    value={settingsForm.settlementAccountNumber}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, settlementAccountNumber: e.target.value }))}
+                    placeholder="0123456789"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Account Name</label>
+                  <input
+                    className="form-input"
+                    value={settingsForm.settlementAccountName}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, settlementAccountName: e.target.value }))}
+                    placeholder="Paradise Creek Hotel"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Mobile Money Number</label>
+                  <input
+                    className="form-input"
+                    value={settingsForm.mobileMoneyNumber}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, mobileMoneyNumber: e.target.value }))}
+                    placeholder="233XXXXXXXXX"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Mobile Money Provider</label>
+                  <select
+                    className="form-input form-select"
+                    value={settingsForm.mobileMoneyProvider}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, mobileMoneyProvider: e.target.value }))}
+                  >
+                    <option value="">Select provider</option>
+                    <option value="mtn">MTN</option>
+                    <option value="vodafone">Vodafone</option>
+                    <option value="airtel">AirtelTigo</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            <button
+              className="btn btn-primary"
+              onClick={handleCreateSubaccount}
+              disabled={subaccountLoading}
+              style={{ marginTop: 8 }}
+            >
+              {subaccountLoading ? 'Processing...' : settingsForm.subaccountCode ? 'Update Subaccount' : 'Create Subaccount'}
+            </button>
+          </div>
+          </details>
+
+          {subaccountMessage && (
+            <div style={{
+              padding: '12px 16px',
+              borderRadius: 8,
+              background: subaccountMessage.type === 'success' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+              border: `1px solid ${subaccountMessage.type === 'success' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+              color: subaccountMessage.type === 'success' ? 'var(--success)' : 'var(--danger)',
+              fontSize: '0.85rem',
+            }}>
+              {subaccountMessage.text}
+            </div>
+          )}
         </div>
       </div>
     );

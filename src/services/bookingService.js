@@ -425,6 +425,47 @@ export async function payBooking(id, paymentRef) {
   return r;
 }
 
+export async function confirmBookingPayment(id, paystackRef) {
+  const r = await sb(async () => {
+    const { error } = await supabase
+      .from('bookings')
+      .update({
+        status: 'confirmed',
+        paystack_ref: paystackRef,
+        payment_ref: paystackRef,
+        paid_at: new Date().toISOString()
+      })
+      .eq('id', id);
+    if (error) {
+      console.error('[confirmBookingPayment] error:', error.message);
+      throw error;
+    }
+    return true;
+  });
+  if (isFallback(r)) return local.payBooking(id, paystackRef);
+  return r;
+}
+
+export async function verifyPayment(reference) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/verify-payment`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify({ reference }),
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data.verified) {
+    throw new Error(data.error || 'Payment verification failed');
+  }
+  return data;
+}
+
 // ================================================================
 // CONTACTS
 // ================================================================

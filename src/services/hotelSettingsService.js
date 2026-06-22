@@ -21,6 +21,14 @@ function mapSettings(s) {
     amenities: s.amenities || [],
     socialFacebook: s.social_facebook,
     socialInstagram: s.social_instagram,
+    subaccountCode: s.subaccount_code || '',
+    subaccountStatus: s.subaccount_status || '',
+    settlementType: s.settlement_type || 'bank',
+    settlementBank: s.settlement_bank || '',
+    settlementAccountNumber: s.settlement_account_number || '',
+    settlementAccountName: s.settlement_account_name || '',
+    mobileMoneyNumber: s.mobile_money_number || '',
+    mobileMoneyProvider: s.mobile_money_provider || '',
   };
 }
 
@@ -61,6 +69,14 @@ export async function updateHotelSettings(settings) {
         amenities: settings.amenities,
         social_facebook: settings.socialFacebook,
         social_instagram: settings.socialInstagram,
+        subaccount_code: settings.subaccountCode,
+        subaccount_status: settings.subaccountStatus,
+        settlement_type: settings.settlementType,
+        settlement_bank: settings.settlementBank,
+        settlement_account_number: settings.settlementAccountNumber,
+        settlement_account_name: settings.settlementAccountName,
+        mobile_money_number: settings.mobileMoneyNumber,
+        mobile_money_provider: settings.mobileMoneyProvider,
       })
       .eq('id', 1);
     if (error) throw error;
@@ -69,4 +85,34 @@ export async function updateHotelSettings(settings) {
     console.error('[hotelSettings] update failed:', e);
     throw e;
   }
+}
+
+export async function createSubaccount(settings) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const payload = {
+    settlement_type: settings.settlementType,
+    settlement_bank: settings.settlementBank,
+    settlement_account_number: settings.settlementAccountNumber,
+    settlement_account_name: settings.settlementAccountName,
+    mobile_money_number: settings.mobileMoneyNumber,
+    mobile_money_provider: settings.mobileMoneyProvider,
+    existing_subaccount_code: settings.subaccountCode || '',
+  };
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/create-subaccount`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || 'Failed to create subaccount');
+  }
+  return data;
 }

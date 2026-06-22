@@ -175,7 +175,7 @@ export default function MyBookingsPage({ onOpenAuth }) {
                           <i className="fas fa-credit-card"></i> Pay Now
                         </button>
                       )}
-                      {(booking.status === 'pending' || booking.status === 'paid') && (
+                      {(booking.status === 'pending' || booking.status === 'paid' || booking.status === 'confirmed') && (
                         <button
                           className="btn btn-outline btn-danger-outline"
                           onClick={() => handleCancel(booking.id)}

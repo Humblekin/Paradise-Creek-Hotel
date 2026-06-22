@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { createBooking } from '../services/bookingService';
+import { createBooking, verifyPayment, confirmBookingPayment, updateBookingStatus } from '../services/bookingService';
 import { checkRoomAvailability } from '../services/roomService';
+import { getHotelSettings } from '../services/hotelSettingsService';
 import './BookingModal.css';
 
 function toDateStr(d) {
@@ -44,6 +45,7 @@ export default function BookingModal({ room, isOpen, onClose, onOpenAuth }) {
 
   const [loading, setLoading] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+  const [subaccountCode, setSubaccountCode] = useState('');
 
   useEffect(() => {
     if (!isOpen || !room) return;
@@ -60,6 +62,10 @@ export default function BookingModal({ room, isOpen, onClose, onOpenAuth }) {
     setChecking(false);
     setAvailable(true);
     setConfirmedBooking(null);
+    setSubaccountCode('');
+    getHotelSettings().then((s) => {
+      if (s?.subaccountCode) setSubaccountCode(s.subaccountCode);
+    }).catch(() => {});
   }, [isOpen, room, today, user]);
 
   useEffect(() => {
@@ -140,47 +146,68 @@ export default function BookingModal({ room, isOpen, onClose, onOpenAuth }) {
       setLoading(false);
       return;
     }
+
+    // 1. Create booking as 'pending' first to reserve the room
+    let pendingBooking;
     try {
-      const handler = window.PaystackPop.setup({
+      pendingBooking = await createBooking({
+        roomId: room.id,
+        roomName: room.title,
+        userId: user?.id || null,
+        guestName: guestName.trim(),
+        guestEmail: guestEmail.trim(),
+        guestPhone: guestPhone.trim(),
+        country: country.trim(),
+        specialRequests: specialRequests.trim(),
+        checkIn,
+        checkOut,
+        guests,
+        totalPrice,
+        paystackRef: '',
+        status: 'pending'
+      });
+    } catch (e) {
+      addToast('Failed to create booking: ' + e.message, 'error');
+      setLoading(false);
+      return;
+    }
+
+    // 2. Open Paystack popup
+    try {
+      const paystackOptions = {
         key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
         email: guestEmail,
         amount: totalPrice * 100,
         currency: 'GHS',
+        ...(subaccountCode ? { subaccount: subaccountCode } : {}),
         callback: function (response) {
-          createBooking({
-            roomId: room.id,
-            roomName: room.title,
-            userId: user?.id || null,
-            guestName: guestName.trim(),
-            guestEmail: guestEmail.trim(),
-            guestPhone: guestPhone.trim(),
-            country: country.trim(),
-            specialRequests: specialRequests.trim(),
-            checkIn,
-            checkOut,
-            guests,
-            totalPrice,
-            paystackRef: response.reference,
-            status: 'confirmed'
-          }).then((booking) => {
-            setConfirmedBooking(booking);
+          verifyPayment(response.reference).then(function () {
+            return confirmBookingPayment(pendingBooking.id, response.reference);
+          }).then(function () {
+            setConfirmedBooking({ ...pendingBooking, status: 'confirmed', paystackRef: response.reference });
             setStep(5);
             addToast('Booking confirmed!', 'success');
-          }).catch(() => {
-            addToast('Booking saved but confirmation pending. Contact support.', 'warning');
+          }).catch(function () {
+            addToast('Payment received but confirmation pending. Contact support with ref: ' + response.reference, 'warning');
             onClose();
-          }).finally(() => {
+          }).finally(function () {
             setLoading(false);
           });
         },
         onClose: function () {
+          // User closed the popup without completing payment — cancel the pending booking
+          updateBookingStatus(pendingBooking.id, 'cancelled').catch(() => {});
           setLoading(false);
         }
-      });
+      };
+
+      const handler = window.PaystackPop.setup(paystackOptions);
       handler.openIframe();
     } catch (e) {
       addToast('Payment failed: ' + e.message, 'error');
       setLoading(false);
+      // Cancel the pending booking since payment couldn't start
+      updateBookingStatus(pendingBooking.id, 'cancelled').catch(() => {});
     }
   };
 

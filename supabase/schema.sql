@@ -567,7 +567,19 @@ $$;
 -- create unique index if not exists idx_bookings_booking_reference on public.bookings (booking_reference) where booking_reference != '';
 --
 -- =============================================================
--- 11. ADMIN CREATION
+-- 11. MIGRATION: Add Paystack subaccount columns (run if hotel_settings already exists)
+-- =============================================================
+-- alter table public.hotel_settings
+--   add column if not exists subaccount_code text default '',
+--   add column if not exists subaccount_status text default '' check (subaccount_status in ('', 'active', 'inactive')),
+--   add column if not exists settlement_type text default 'bank' check (settlement_type in ('bank', 'mobile_money')),
+--   add column if not exists settlement_bank text default '',
+--   add column if not exists settlement_account_number text default '',
+--   add column if not exists settlement_account_name text default '',
+--   add column if not exists mobile_money_number text default '',
+--   add column if not exists mobile_money_provider text default '' check (mobile_money_provider in ('', 'mtn', 'vodafone', 'airtel'));
+-- =============================================================
+-- 12. ADMIN CREATION
 -- After signing up, run this to make yourself admin:
 --   update public.profiles
 --   set role = 'admin'
@@ -600,6 +612,15 @@ create table if not exists public.hotel_settings (
   ],
   social_facebook text default 'https://www.facebook.com/ParadiseCreekHotel',
   social_instagram text default '@paradisecreekg',
+  -- Paystack subaccount fields
+  subaccount_code text default '',
+  subaccount_status text default '' check (subaccount_status in ('', 'active', 'inactive')),
+  settlement_type text default 'bank' check (settlement_type in ('bank', 'mobile_money')),
+  settlement_bank text default '',
+  settlement_account_number text default '',
+  settlement_account_name text default '',
+  mobile_money_number text default '',
+  mobile_money_provider text default '' check (mobile_money_provider in ('', 'mtn', 'vodafone', 'airtel')),
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
