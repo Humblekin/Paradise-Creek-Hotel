@@ -98,7 +98,7 @@ export async function createSubaccount(settings) {
     settlement_account_name: settings.settlementAccountName,
     mobile_money_number: settings.mobileMoneyNumber,
     mobile_money_provider: settings.mobileMoneyProvider,
-    existing_subaccount_code: settings.subaccountCode || '',
+    existing_subaccount_code: (settings.subaccountCode || '').replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, ''),
   };
 
   const res = await fetch(`${supabaseUrl}/functions/v1/create-subaccount`, {

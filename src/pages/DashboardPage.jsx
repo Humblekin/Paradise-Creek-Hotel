@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getRooms, addRoom, updateRoom, deleteRoom } from '../services/roomService';
-import { getAllBookings, updateBookingStatus } from '../services/bookingService';
+import { getAllBookings, updateBookingStatus, deleteBooking } from '../services/bookingService';
 import { getUserProfile } from '../services/authService';
 import { uploadRoomImage } from '../services/storageService';
 import { getHotelSettings, updateHotelSettings, createSubaccount } from '../services/hotelSettingsService';
@@ -68,11 +68,26 @@ export default function DashboardPage() {
   const [imagePreviews, setImagePreviews] = useState([]);
   const fileInputRef = useRef(null);
   const [bookingSearch, setBookingSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [hotelSettings, setHotelSettings] = useState(null);
   const [settingsForm, setSettingsForm] = useState(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [subaccountMessage, setSubaccountMessage] = useState(null);
   const [subaccountLoading, setSubaccountLoading] = useState(false);
+
+  const filteredBookings = useMemo(
+    () => (bookings || []).filter((b) => {
+      const matchesSearch = !bookingSearch.trim() ||
+        (b.bookingRef || '').toLowerCase().includes(bookingSearch.toLowerCase()) ||
+        (b.guestEmail || '').toLowerCase().includes(bookingSearch.toLowerCase()) ||
+        (b.guestPhone || '').includes(bookingSearch) ||
+        (b.guestName || '').toLowerCase().includes(bookingSearch.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    }),
+    [bookings, bookingSearch, statusFilter]
+  );
 
   const paidOrConfirmedBookings = useMemo(
     () => (bookings || []).filter((b) => ['paid', 'confirmed', 'checked_in', 'checked_out'].includes(b.status)),
@@ -282,6 +297,55 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteBooking = async (id, ref) => {
+    if (!window.confirm(`Delete booking ${ref || id}? This cannot be undone.`)) return;
+    try {
+      await deleteBooking(id);
+      addToast('Booking deleted', 'success');
+      setBookings((prev) => prev.filter((b) => b.id !== id));
+    } catch {
+      addToast('Failed to delete booking', 'error');
+    }
+  };
+
+  const handleClearFiltered = async () => {
+    const toDelete = selectedIds.size > 0
+      ? filteredBookings.filter((b) => selectedIds.has(b.id))
+      : filteredBookings;
+    if (!toDelete.length) {
+      addToast('No bookings match the current filter', 'warning');
+      return;
+    }
+    const label = selectedIds.size > 0 ? `${selectedIds.size} selected` : `${toDelete.length} filtered`;
+    if (!window.confirm(`Delete ${label} booking(s)? This cannot be undone.`)) return;
+    try {
+      for (const b of toDelete) {
+        await deleteBooking(b.id);
+      }
+      setBookings((prev) => prev.filter((b) => !toDelete.some((d) => d.id === b.id)));
+      setSelectedIds(new Set());
+      addToast(`Deleted ${toDelete.length} booking(s)`, 'success');
+    } catch {
+      addToast('Failed to delete bookings', 'error');
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredBookings.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredBookings.map((b) => b.id)));
+    }
+  };
+
   const renderOverview = () => {
     const totalRooms = rooms ? rooms.length : 0;
     const totalBookings = bookings ? bookings.length : 0;
@@ -432,34 +496,50 @@ export default function DashboardPage() {
     </div>
   );
 
+  const statusOptions = ['all', 'pending', 'paid', 'confirmed', 'checked_in', 'checked_out', 'cancelled'];
+
   const renderBookings = () => {
-    const filtered = bookingSearch.trim()
-      ? bookings.filter(b =>
-          (b.bookingRef || '').toLowerCase().includes(bookingSearch.toLowerCase()) ||
-          (b.guestEmail || '').toLowerCase().includes(bookingSearch.toLowerCase()) ||
-          (b.guestPhone || '').includes(bookingSearch) ||
-          (b.guestName || '').toLowerCase().includes(bookingSearch.toLowerCase())
-        )
-      : bookings;
+    const allSelected = filteredBookings.length > 0 && selectedIds.size === filteredBookings.length;
 
     return (
       <div>
         <div className="dashboard-section-header">
           <h2>All Bookings</h2>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <input
               className="form-input"
-              style={{ width: 260, padding: '6px 12px', fontSize: '0.85rem' }}
-              placeholder="Search by name, email, phone, or ref..."
+              style={{ width: 200, padding: '6px 12px', fontSize: '0.85rem' }}
+              placeholder="Search..."
               value={bookingSearch}
               onChange={(e) => setBookingSearch(e.target.value)}
             />
+            <select
+              className="form-input form-select"
+              style={{ width: 140, padding: '6px 12px', fontSize: '0.85rem' }}
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setSelectedIds(new Set()); }}
+            >
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>{s === 'all' ? 'All Status' : s.replace('_', ' ')}</option>
+              ))}
+            </select>
+            {selectedIds.size > 0 && (
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                {selectedIds.size} selected
+              </span>
+            )}
+            <button className="dashboard-action-btn delete" onClick={handleClearFiltered} style={{ padding: '6px 14px' }}>
+              <i className="fas fa-trash"></i> Delete {selectedIds.size > 0 ? 'Selected' : 'Filtered'}
+            </button>
           </div>
         </div>
         <div className="dashboard-table-wrap">
           <table className="data-table">
             <thead>
               <tr>
+                <th style={{ width: 36 }}>
+                  <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
+                </th>
                 <th>Guest</th>
                 <th>Contact</th>
                 <th>Room</th>
@@ -473,9 +553,12 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length > 0 ? (
-                filtered.map((b) => (
-                  <tr key={b.id}>
+              {filteredBookings.length > 0 ? (
+                filteredBookings.map((b) => (
+                  <tr key={b.id} style={{ background: selectedIds.has(b.id) ? 'rgba(212,168,83,0.05)' : undefined }}>
+                    <td>
+                      <input type="checkbox" checked={selectedIds.has(b.id)} onChange={() => toggleSelect(b.id)} style={{ cursor: 'pointer' }} />
+                    </td>
                     <td>
                       <div style={{ fontWeight: 500 }}>{b.guestName || 'N/A'}</div>
                     </td>
@@ -518,13 +601,18 @@ export default function DashboardPage() {
                             Cancel
                           </button>
                         )}
+                        {(b.status === 'pending' || b.status === 'cancelled' || b.status === 'checked_out') && (
+                          <button className="dashboard-action-btn delete" onClick={() => handleDeleteBooking(b.id, b.bookingRef)}>
+                            <i className="fas fa-trash"></i> Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                     {bookingSearch ? 'No bookings match your search' : 'No bookings found'}
                   </td>
                 </tr>
@@ -764,17 +852,19 @@ export default function DashboardPage() {
                 className="btn btn-primary"
                 style={{ whiteSpace: 'nowrap' }}
                 onClick={async () => {
-                  if (!settingsForm.subaccountCode.trim()) {
+                  const code = settingsForm.subaccountCode.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
+                  if (!code) {
                     addToast('Enter a subaccount code', 'error');
                     return;
                   }
                   try {
                     await updateHotelSettings({
                       ...settingsForm,
+                      subaccountCode: code,
                       subaccountStatus: 'active'
                     });
-                    setHotelSettings({ ...settingsForm, subaccountStatus: 'active' });
-                    setSettingsForm((prev) => ({ ...prev, subaccountStatus: 'active' }));
+                    setHotelSettings({ ...settingsForm, subaccountCode: code, subaccountStatus: 'active' });
+                    setSettingsForm((prev) => ({ ...prev, subaccountCode: code, subaccountStatus: 'active' }));
                     addToast('Subaccount code saved', 'success');
                   } catch {
                     addToast('Failed to save', 'error');

@@ -202,6 +202,11 @@ create policy "Admins can update bookings"
   on public.bookings for update
   using (public.is_admin());
 
+drop policy if exists "Admins can delete bookings" on public.bookings;
+create policy "Admins can delete bookings"
+  on public.bookings for delete
+  using (public.is_admin());
+
 -- =============================================================
 -- 4. BOOKING CONFLICT PREVENTION (RPC)
 -- Prevents double-booking by checking overlapping dates

@@ -470,6 +470,26 @@ export async function verifyPayment(reference) {
 // CONTACTS
 // ================================================================
 
+export async function deleteBooking(id) {
+  const r = await sb(async () => {
+    const { error } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('id', id);
+    if (error) {
+      console.error('[deleteBooking] error:', error.message);
+      throw error;
+    }
+    return true;
+  });
+  if (isFallback(r)) {
+    const localBookings = local.getAllBookings().filter(b => b.id !== id);
+    localStorage.setItem('paradise_creek_bookings', JSON.stringify(localBookings));
+    return true;
+  }
+  return r;
+}
+
 export async function submitContact(data) {
   const r = await sb(async () => {
     const { error } = await supabase.from('contacts').insert({

@@ -64,7 +64,7 @@ export default function BookingModal({ room, isOpen, onClose, onOpenAuth }) {
     setConfirmedBooking(null);
     setSubaccountCode('');
     getHotelSettings().then((s) => {
-      if (s?.subaccountCode) setSubaccountCode(s.subaccountCode);
+      if (s?.subaccountCode) setSubaccountCode(s.subaccountCode.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, ''));
     }).catch(() => {});
   }, [isOpen, room, today, user]);
 
@@ -195,8 +195,7 @@ export default function BookingModal({ room, isOpen, onClose, onOpenAuth }) {
           });
         },
         onClose: function () {
-          // User closed the popup without completing payment — cancel the pending booking
-          updateBookingStatus(pendingBooking.id, 'cancelled').catch(() => {});
+          updateBookingStatus(pendingBooking.id, 'pending').catch(() => {});
           setLoading(false);
         }
       };

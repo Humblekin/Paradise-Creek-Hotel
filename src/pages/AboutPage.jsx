@@ -48,7 +48,7 @@ export default function AboutPage() {
           <div className="about-story-text">
             <h2>A Legacy of Excellence</h2>
             <p>
-              Since 1999, Paradise Creek Hotel has been the destination of choice for discerning travelers seeking an unforgettable blend of luxury, comfort, and natural beauty. Nestled along the pristine coastline, our hotel has grown from a small boutique retreat into a world-renowned destination.
+              Since 2025, Paradise Creek Hotel has been the destination of choice for discerning travelers seeking an unforgettable blend of luxury, comfort, and natural beauty. Nestled along the pristine coastline, our hotel has grown from a small boutique retreat into a world-renowned destination.
             </p>
             <p>
               Every detail — from the hand-selected Italian marble in our lobby to the farm-to-table cuisine crafted by our award-winning chefs — reflects our unwavering commitment to excellence. We welcome guests from across the globe to experience the warmth of our hospitality, the richness of our culture, and the unparalleled beauty of our surroundings.
