@@ -427,18 +427,16 @@ export async function payBooking(id, paymentRef) {
 
 export async function confirmBookingPayment(id, paystackRef) {
   const r = await sb(async () => {
-    const { error } = await supabase
-      .from('bookings')
-      .update({
-        status: 'confirmed',
-        paystack_ref: paystackRef,
-        payment_ref: paystackRef,
-        paid_at: new Date().toISOString()
-      })
-      .eq('id', id);
+    const { data, error } = await supabase.rpc('confirm_booking_payment', {
+      p_booking_id: id,
+      p_paystack_ref: paystackRef,
+    });
     if (error) {
-      console.error('[confirmBookingPayment] error:', error.message);
+      console.error('[confirmBookingPayment] RPC error:', error.message);
       throw error;
+    }
+    if (!data?.success) {
+      throw new Error(data?.error || 'Failed to confirm booking payment');
     }
     return true;
   });

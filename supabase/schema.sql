@@ -285,6 +285,43 @@ $$;
 -- Allow anon and authenticated roles to call this function via REST API
 grant execute on function public.create_booking_safe to anon, authenticated;
 
+-- =============================================================
+-- 4b. CONFIRM BOOKING PAYMENT (RPC)
+-- Called after Paystack payment succeeds. Uses security definer
+-- to bypass RLS so the client can update booking status.
+-- =============================================================
+create or replace function public.confirm_booking_payment(
+  p_booking_id uuid,
+  p_paystack_ref text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_result jsonb;
+begin
+  update public.bookings
+  set
+    status = 'confirmed',
+    paystack_ref = p_paystack_ref,
+    payment_ref = p_paystack_ref,
+    paid_at = now()
+  where id = p_booking_id
+    and status = 'pending';
+
+  if not found then
+    return jsonb_build_object('success', false, 'error', 'Booking not found or already confirmed');
+  end if;
+
+  v_result := jsonb_build_object('success', true);
+  return v_result;
+end;
+$$;
+
+grant execute on function public.confirm_booking_payment to anon, authenticated;
+
 -- Allow client-side role-checking functions
 grant execute on function public.get_my_role to anon, authenticated;
 grant execute on function public.is_admin to anon, authenticated;
