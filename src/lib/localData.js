@@ -23,7 +23,7 @@ const usersData = [
 
 export const testimonials = [
   { name:'Sarah Johnson', location:'London, UK', text:'An absolutely magnificent experience. The Presidential Penthouse took my breath away. Every detail was perfect, from the fresh flowers to the hand-written welcome note.', rating:5, avatar:'https://picsum.photos/seed/sarah/80/80' },
-  { name:'David Osei', location:'Accra, Ghana', text:'Paradise Creek Hotel redefines luxury in West Africa. The spa treatments are world-class, and the staff anticipates your every need. Truly five-star service.', rating:5, avatar:'https://picsum.photos/seed/david/80/80' },
+  { name:'David Osei', location:'Tamale, Ghana', text:'Paradise Creek Hotel redefines luxury in West Africa. The spa treatments are world-class, and the staff anticipates your every need. Truly five-star service.', rating:5, avatar:'https://picsum.photos/seed/david/80/80' },
   { name:'Marie Dupont', location:'Paris, France', text:'From the moment I arrived, I felt like royalty. The ocean view from my deluxe room was mesmerizing. I will definitely return for another stay.', rating:5, avatar:'https://picsum.photos/seed/marie/80/80' },
   { name:'Chen Wei', location:'Shanghai, China', text:'The blend of African warmth and international luxury standards is remarkable. The fine dining restaurant serves some of the best cuisine I have had anywhere.', rating:4, avatar:'https://picsum.photos/seed/chen/80/80' }
 ];

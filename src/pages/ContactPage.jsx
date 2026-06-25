@@ -8,7 +8,7 @@ const contactInfo = [
   {
     icon: 'fa-map-marker-alt',
     title: 'Address',
-    content: 'Independence Ave, Accra, Ghana'
+    content: 'Koblimahagu Zuo, Tamale, Ghana'
   },
   {
     icon: 'fa-phone',

@@ -623,7 +623,7 @@ create table if not exists public.hotel_settings (
   id integer primary key default 1 check (id = 1),  -- enforce single row
   hotel_name text not null default 'Paradise Creek Hotel',
   tagline text default 'Where Luxury Meets Serenity',
-  location text default 'Independence Ave, Accra, Ghana',
+  location text default 'Koblimahagu Zuo, Tamale, Ghana',
   airport_distance text default '15 minutes from Kotoka International Airport',
   phone text default '+233 30 277 1234',
   email text default 'paradisecreekhotel@yahoo.com',

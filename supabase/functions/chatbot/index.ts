@@ -61,7 +61,7 @@ async function fetchRooms() {
 
 function buildSystemPrompt(settings: Record<string, unknown> | null, rooms: any[]) {
   const name = (settings?.hotel_name as string) || 'Paradise Creek Hotel'
-  const location = (settings?.location as string) || 'Accra, Ghana'
+  const location = (settings?.location as string) || 'Tamale, Ghana'
   const tagline = (settings?.tagline as string) || ''
   const phone = (settings?.phone as string) || ''
   const email = (settings?.email as string) || ''
