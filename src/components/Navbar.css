@@ -25,7 +25,9 @@
   color: var(--text);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
 .navbar-logo-icon {
@@ -36,15 +38,28 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: logoGlow 2s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(6, 95, 70, 0.3);
 }
 
 .navbar-logo-icon .fa-crown {
   color: var(--gold);
   font-size: 1rem;
+  animation: crownPulse 2s ease-in-out infinite;
 }
 
 .navbar-logo-gold {
   color: var(--gold);
+}
+
+@keyframes logoGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(6, 95, 70, 0.3); border-color: var(--gold); }
+  50% { box-shadow: 0 0 18px rgba(6, 95, 70, 0.6); border-color: #c8a14b; }
+}
+
+@keyframes crownPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
 }
 
 .navbar-links {
@@ -403,5 +418,34 @@
 
   .navbar {
     padding: 12px 4%;
+  }
+
+  .navbar-logo {
+    font-size: 1.1rem;
+    gap: 5px;
+  }
+
+  .navbar-logo-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .navbar-logo-icon .fa-crown {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-logo {
+    font-size: 0.95rem;
+  }
+
+  .navbar-logo-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .navbar-logo-icon .fa-crown {
+    font-size: 0.75rem;
   }
 }
