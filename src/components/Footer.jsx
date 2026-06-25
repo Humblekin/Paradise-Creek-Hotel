@@ -49,7 +49,7 @@ export default function Footer() {
       </div>
 
       <div className="footer-bottom">
-        <span>QQ134 lime St. NT-0264-8192 &copy; 2026 Paradise Creek Hotel. All rights reserved.</span>
+        <span>QQ134 lime St. NT-0264-8192 &copy; 2026 Paradise Creek Hotel. All rights reserved. | Built by <strong>HumbleDev softwares</strong></span>
         <div className="footer-social">
           <a
             href="https://www.facebook.com/ParadiseCreekHotel"
