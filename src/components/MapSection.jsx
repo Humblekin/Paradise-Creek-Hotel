@@ -19,7 +19,7 @@ export default function MapSection() {
       <div className="map-container glass" ref={cardRef}>
         <iframe
           title="Paradise Creek Hotel Location"
-          src="https://www.openstreetmap.org/export/embed.html?bbox=-0.1867%2C5.5560%2C-0.1767%2C5.5660&layer=mapnik&marker=5.5610%2C-0.1817"
+          src="https://www.openstreetmap.org/export/embed.html?bbox=-0.704341%2C9.422960%2C-0.664341%2C9.462960&layer=mapnik&marker=9.442960%2C-0.684341"
           width="100%"
           height="100%"
           style={{ border: 0 }}
@@ -27,8 +27,8 @@ export default function MapSection() {
           loading="lazy"
         />
         <div className={`map-info-card glass-strong animate-on-scroll slide-left ${cardVisible ? 'visible' : ''}`}>
-          <h3 className="map-info-title">Paradise Creek Hotel</h3>
-          <p className="map-info-address">Independence Ave, Accra, Ghana</p>
+          <h3 className="map-info-title">Peek Creek Hotel</h3>
+          <p className="map-info-address">Koblimahagu, Tamale, Ghana</p>
         </div>
       </div>
     </section>
