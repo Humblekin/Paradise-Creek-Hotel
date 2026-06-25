@@ -214,19 +214,19 @@ create policy "Admins can delete bookings"
 -- =============================================================
 create or replace function public.create_booking_safe(
   p_room_id uuid,
-  p_room_name text,
+  p_check_in date,
+  p_check_out date,
   p_guest_name text,
+  p_guests integer default 1,
+  p_total_price numeric default 0,
+  p_status text default 'pending',
+  p_paystack_ref text default '',
+  p_room_name text default '',
   p_guest_email text default '',
   p_guest_phone text default '',
   p_country text default '',
   p_special_requests text default '',
-  p_booking_reference text default '',
-  p_check_in date,
-  p_check_out date,
-  p_guests integer default 1,
-  p_total_price numeric default 0,
-  p_status text default 'pending',
-  p_paystack_ref text default ''
+  p_booking_reference text default ''
 )
 returns jsonb
 language plpgsql
@@ -241,38 +241,27 @@ declare
   v_ref text;
   v_result jsonb;
 begin
-  -- Use the authenticated user's ID (null for guest bookings)
   v_user_id := auth.uid();
-
-  -- Generate booking reference if not provided
   v_ref := p_booking_reference;
   if v_ref = '' then
     v_ref := 'HTL-' || to_char(now(), 'YYYYMMDD') || '-' || lpad(floor(random() * 9000 + 1000)::text, 4, '0');
   end if;
-
-  -- Check the room has available inventory
   select available_rooms into v_room_available
   from public.rooms
   where id = p_room_id
   for update;
-
   if not found then
     return jsonb_build_object('success', false, 'error', 'Room not found');
   end if;
-
-  -- Count overlapping non-cancelled bookings
   select count(*) into v_conflicting_bookings
   from public.bookings
   where room_id = p_room_id
     and status not in ('cancelled', 'checked_out')
     and p_check_in < check_out
     and p_check_out > check_in;
-
   if v_conflicting_bookings >= v_room_available then
     return jsonb_build_object('success', false, 'error', 'Room is not available for selected dates');
   end if;
-
-  -- Create the booking (user_id is null for guest bookings)
   insert into public.bookings (
     user_id, room_id, room_name, guest_name, guest_email, guest_phone,
     country, special_requests, booking_reference,
@@ -283,14 +272,12 @@ begin
     p_check_in, p_check_out, p_guests, p_total_price, p_status, p_paystack_ref
   )
   returning id into v_booking_id;
-
   v_result := jsonb_build_object(
     'success', true,
     'booking_id', v_booking_id,
     'booking_reference', v_ref,
     'status', p_status
   );
-
   return v_result;
 end;
 $$;

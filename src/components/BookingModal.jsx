@@ -187,8 +187,9 @@ export default function BookingModal({ room, isOpen, onClose, onOpenAuth }) {
             setConfirmedBooking({ ...pendingBooking, status: 'confirmed', paystackRef: response.reference });
             setStep(5);
             addToast('Booking confirmed!', 'success');
-          }).catch(function () {
-            addToast('Payment received but confirmation pending. Contact support with ref: ' + response.reference, 'warning');
+          }).catch(function (err) {
+            console.error('[BookingModal] Post-payment error:', err?.message || err);
+            addToast('Payment received but confirmation pending. Contact support with ref: ' + response.reference + '. Error: ' + (err?.message || 'unknown'), 'warning');
             onClose();
           }).finally(function () {
             setLoading(false);

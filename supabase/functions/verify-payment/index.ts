@@ -33,9 +33,15 @@ serve(async (req) => {
     const result = await paystackRes.json()
 
     if (!paystackRes.ok || !result.status) {
-      console.error('[verify-payment] Paystack error:', result)
+      const keyType = PAYSTACK_SECRET_KEY.startsWith('sk_test_') ? 'TEST' : PAYSTACK_SECRET_KEY.startsWith('sk_live_') ? 'LIVE' : 'UNKNOWN'
+      console.error('[verify-payment] Paystack error:', { httpStatus: paystackRes.status, keyType, result })
       return new Response(
-        JSON.stringify({ verified: false, error: result.message || 'Verification failed' }),
+        JSON.stringify({
+          verified: false,
+          error: result.message || 'Verification failed',
+          keyType,
+          paystackStatus: paystackRes.status,
+        }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       )
     }
@@ -52,11 +58,12 @@ serve(async (req) => {
         paidAt: tx.paid_at,
         gatewayResponse: tx.gateway_response,
         reference: tx.reference,
+        keyType: PAYSTACK_SECRET_KEY.startsWith('sk_test_') ? 'TEST' : PAYSTACK_SECRET_KEY.startsWith('sk_live_') ? 'LIVE' : 'UNKNOWN',
       }),
       { headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     )
   } catch (err) {
     console.error('[verify-payment] Error:', err)
-    return new Response(JSON.stringify({ verified: false, error: 'Internal error' }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } })
+    return new Response(JSON.stringify({ verified: false, error: 'Internal error: ' + (err?.message || err) }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } })
   }
 })
