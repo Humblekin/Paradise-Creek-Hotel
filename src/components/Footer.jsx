@@ -12,7 +12,7 @@ export default function Footer() {
           </div>
           <p className="footer-tagline">
             Where luxury meets serenity. Experience the finest hospitality in
-            Accra.
+            Tamale.
           </p>
         </div>
 
