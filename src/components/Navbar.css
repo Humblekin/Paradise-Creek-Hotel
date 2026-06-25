@@ -30,36 +30,24 @@
   flex-shrink: 0;
 }
 
-.navbar-logo-icon {
+.navbar-logo-img {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 2px solid var(--gold);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: logoGlow 2s ease-in-out infinite;
+  object-fit: cover;
+  animation: logoSpin 3s ease-in-out infinite;
   box-shadow: 0 0 8px rgba(6, 95, 70, 0.3);
-}
-
-.navbar-logo-icon .fa-crown {
-  color: var(--gold);
-  font-size: 1rem;
-  animation: crownPulse 2s ease-in-out infinite;
 }
 
 .navbar-logo-gold {
   color: var(--gold);
 }
 
-@keyframes logoGlow {
-  0%, 100% { box-shadow: 0 0 8px rgba(6, 95, 70, 0.3); border-color: var(--gold); }
-  50% { box-shadow: 0 0 18px rgba(6, 95, 70, 0.6); border-color: #c8a14b; }
-}
-
-@keyframes crownPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
+@keyframes logoSpin {
+  0%, 100% { transform: scale(1) rotate(0deg); box-shadow: 0 0 8px rgba(6, 95, 70, 0.3); }
+  25% { transform: scale(1.05) rotate(-3deg); }
+  50% { transform: scale(1) rotate(0deg); box-shadow: 0 0 18px rgba(6, 95, 70, 0.6); }
+  75% { transform: scale(1.05) rotate(3deg); }
 }
 
 .navbar-links {
@@ -425,13 +413,9 @@
     gap: 5px;
   }
 
-  .navbar-logo-icon {
+  .navbar-logo-img {
     width: 32px;
     height: 32px;
-  }
-
-  .navbar-logo-icon .fa-crown {
-    font-size: 0.85rem;
   }
 }
 
@@ -440,12 +424,8 @@
     font-size: 0.95rem;
   }
 
-  .navbar-logo-icon {
+  .navbar-logo-img {
     width: 28px;
     height: 28px;
-  }
-
-  .navbar-logo-icon .fa-crown {
-    font-size: 0.75rem;
   }
 }

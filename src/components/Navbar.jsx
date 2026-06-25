@@ -66,7 +66,7 @@ export default function Navbar({ onOpenAuth }) {
     <>
       <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
         <Link to="/" className="navbar-logo">
-          <div className="navbar-logo-icon"><i className="fas fa-crown"></i></div>
+          <img src="/logo.jpeg" alt="Paradise Creek Hotel" className="navbar-logo-img" />
           <span>PARADISE</span>
           <span className="navbar-logo-gold"> CREEK HOTEL</span>
         </Link>
