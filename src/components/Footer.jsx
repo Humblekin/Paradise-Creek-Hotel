@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import './Footer.css';
+import { Link } from "react-router-dom";
+import "./Footer.css";
 
 export default function Footer() {
   return (
@@ -11,7 +11,8 @@ export default function Footer() {
             <span>PARADISE CREEK HOTEL</span>
           </div>
           <p className="footer-tagline">
-            Where luxury meets serenity. Experience the finest hospitality in Accra.
+            Where luxury meets serenity. Experience the finest hospitality in
+            Accra.
           </p>
         </div>
 
@@ -26,16 +27,20 @@ export default function Footer() {
         <div className="footer-col">
           <h4>Services</h4>
           <a href="#">Room Service</a>
-          <a href="#">Airport Transfer</a>
-          <a href="#">Spa & Wellness</a>
-          <a href="#">Event Hosting</a>
         </div>
 
         <div className="footer-col">
           <h4>Newsletter</h4>
           <p>Get exclusive offers delivered to your inbox.</p>
-          <form className="footer-newsletter" onSubmit={(e) => e.preventDefault()}>
-            <input type="email" placeholder="Your email" className="footer-newsletter-input" />
+          <form
+            className="footer-newsletter"
+            onSubmit={(e) => e.preventDefault()}
+          >
+            <input
+              type="email"
+              placeholder="Your email"
+              className="footer-newsletter-input"
+            />
             <button type="submit" className="footer-newsletter-btn">
               <i className="fas fa-paper-plane"></i>
             </button>
@@ -44,18 +49,38 @@ export default function Footer() {
       </div>
 
       <div className="footer-bottom">
-        <span>&copy; 2024 Paradise Creek Hotel. All rights reserved.</span>
+        <span>QQ134 lime St. NT-0264-8192 &copy; 2026 Paradise Creek Hotel. All rights reserved.</span>
         <div className="footer-social">
-          <a href="https://www.facebook.com/ParadiseCreekHotel" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+          <a
+            href="https://www.facebook.com/ParadiseCreekHotel"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Facebook"
+          >
             <i className="fab fa-facebook-f"></i>
           </a>
-          <a href="https://www.instagram.com/paradisecreekg" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+          <a
+            href="https://www.instagram.com/paradisecreekg"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Instagram"
+          >
             <i className="fab fa-instagram"></i>
           </a>
-          <a href="#" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
+          <a
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Twitter"
+          >
             <i className="fab fa-twitter"></i>
           </a>
-          <a href="#" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+          <a
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="LinkedIn"
+          >
             <i className="fab fa-linkedin-in"></i>
           </a>
         </div>

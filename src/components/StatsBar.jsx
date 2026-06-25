@@ -6,7 +6,7 @@ export default function StatsBar() {
   const [containerRef, visible] = useScrollAnimation();
   const [guestsRef, guestsCount] = useCounter(10);
   const [yearsRef, yearsCount] = useCounter(1);
-  const [roomsRef, roomsCount] = useCounter(5);
+  const [roomsRef, roomsCount] = useCounter(7);
   const [ratingRef, ratingCount] = useCounter(4);
 
   const stats = [

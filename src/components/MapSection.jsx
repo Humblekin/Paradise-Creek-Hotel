@@ -28,7 +28,7 @@ export default function MapSection() {
         />
         <div className={`map-info-card glass-strong animate-on-scroll slide-left ${cardVisible ? 'visible' : ''}`}>
           <h3 className="map-info-title">Paradise Creek Hotel</h3>
-          <p className="map-info-address">Koblimahagu, Tamale, Ghana</p>
+          <p className="map-info-address">Koblimahagu Zuo, Tamale, Ghana</p>
         </div>
       </div>
     </section>
