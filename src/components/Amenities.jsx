@@ -2,10 +2,10 @@ import { useScrollAnimation } from '../hooks/useScrollAnimation';
 import './Amenities.css';
 
 const amenitiesData = [
-  { icon: 'fa-spa', title: 'Luxury Spa' },
-  { icon: 'fa-swimming-pool', title: 'Infinity Pool' },
+  { icon: 'fa-tshirt', title: 'Laundry' },
+  { icon: 'fa-bolt', title: 'Standby Generator' },
   { icon: 'fa-utensils', title: 'Fine Dining' },
-  { icon: 'fa-dumbbell', title: 'Fitness Center' },
+  { icon: 'fa-video', title: 'CCTV Cameras' },
   { icon: 'fa-wifi', title: 'Free Wi-Fi' },
   { icon: 'fa-concierge-bell', title: 'Concierge' },
 ];
